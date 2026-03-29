@@ -1,39 +1,66 @@
-# KEATS Downloader
+<p align="center">
+  <img src="extension/icons/icon128.png" alt="KEATS Downloader" width="80" />
+</p>
 
-> Download all your KEATS course materials in one click.
+<h1 align="center">KEATS Downloader</h1>
 
-A Chrome extension for [King's College London KEATS](https://keats.kcl.ac.uk) that bulk-downloads lecture slides, PDFs, podcasts, videos, and all course files — automatically organised into folders by week, with lectures and tutorials separated.
+<p align="center">
+  <strong>Download all your KEATS course materials in one click.</strong>
+  <br />
+  Lecture slides · PDFs · Videos · Podcasts — organised into folders automatically.
+</p>
 
-Also works with other Moodle-based university platforms.
+<p align="center">
+  <a href="https://chrome.google.com/webstore"><img src="https://img.shields.io/badge/Chrome_Web_Store-coming_soon-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
+  <a href="../../releases"><img src="https://img.shields.io/github/v/release/Saif-AD/keats-downloader?style=for-the-badge&color=c1002a" alt="Release" /></a>
+  <a href="../../blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c1002a?style=for-the-badge" alt="MIT License" /></a>
+</p>
+
+---
 
 ## Install
 
 ### Chrome Web Store
 
-<!-- TODO: Replace with actual Chrome Web Store link -->
-[**Install KEATS Downloader**](https://chrome.google.com/webstore) (coming soon)
+<!-- TODO: Replace with actual Chrome Web Store link when approved -->
+[**Install KEATS Downloader**](https://chrome.google.com/webstore) — one click, no developer mode needed. *(Awaiting approval)*
 
 ### Manual Install
 
-1. [Download this repo](../../archive/refs/heads/main.zip) and unzip it
-2. Go to `chrome://extensions/` in Chrome
-3. Turn on **Developer mode** (top right)
-4. Click **Load unpacked** and select the `extension/` folder
-5. Pin the extension to your toolbar
+1. [Download this repo](../../archive/refs/heads/main.zip) and unzip
+2. Open `chrome://extensions/`
+3. Enable **Developer mode** → click **Load unpacked** → select the `extension/` folder
+
+---
 
 ## How It Works
 
-1. Go to any KEATS course page
-2. Click the KEATS Downloader icon
-3. Choose what to download:
-   - **Course materials** — slides, PDFs, documents, podcasts, code files
-   - **Weekly videos** — Kaltura video resources embedded in sections
-   - **Lecture captures** — Echo360 lecture recordings (720p MP4)
-   - **Folder contents** — expands Moodle folders
-   - **Optional resources** — supplementary/non-mandatory materials
-4. Click **Download All**
+<table>
+<tr>
+<td width="50%">
 
-Everything saves to `Downloads/KEATS Downloads/` with this structure:
+1. Go to any KEATS course page
+2. Click the extension icon
+3. Pick what to download
+4. Hit **Download All**
+
+Everything saves to `Downloads/KEATS Downloads/` in organised folders.
+
+</td>
+<td width="50%">
+
+**Download options:**
+- ✅ Course materials (slides, PDFs, docs)
+- ☐ Weekly videos (Kaltura)
+- ☐ Lecture captures (Echo360, 720p)
+- ✅ Folder contents
+- ☐ Optional resources
+
+</td>
+</tr>
+</table>
+
+### Folder Structure
 
 ```
 KEATS Downloads/
@@ -41,75 +68,86 @@ KEATS Downloads/
     Week 1 - Topic/
       Lectures/
         lecture_slides.pdf
-        lecture_podcast.m4a
+        podcast.m4a
         Session_1A.mp4
       Tutorials/
         worksheet.pdf
-    Week 2 - Topic/
-      ...
     Assessment/
       Coursework Brief/
         brief.pdf
     Lecture Recordings/
       Lecture - 20 Jan 2026.mp4
-      Lecture - 27 Jan 2026.mp4
 ```
 
-Subfolders are created automatically based on section headings on the KEATS page.
+Subfolders are created from section headings on the course page — lectures, tutorials, assessments, and custom sections are all detected automatically.
+
+---
 
 ## Features
 
-- **One-click bulk download** of entire courses
-- **Smart folder organisation** — lectures, tutorials, assessments sorted automatically
-- **Kaltura video downloads** — embedded lecture videos downloaded as MP4
-- **Echo360 lecture captures** — recorded lectures downloaded at 720p
-- **Moodle folder expansion** — contents downloaded individually
-- **Optional resource filtering** — skip supplementary materials
-- **Light and dark mode**
-- **No download spam** — Chrome's download bar hidden during bulk downloads
-- **No dependencies** — pure Chrome extension, nothing else to install
+| Feature | Details |
+|---------|---------|
+| **Bulk download** | Entire course in one click |
+| **Smart folders** | Lectures, tutorials, assessments sorted automatically |
+| **Kaltura videos** | Embedded lecture videos → MP4 |
+| **Echo360 captures** | Recorded lectures → 720p MP4 |
+| **Folder expansion** | Moodle folders unpacked and downloaded |
+| **Optional filtering** | Skip supplementary materials |
+| **Light / dark mode** | Toggle in the popup |
+| **No install spam** | Download bar hidden during bulk downloads |
+| **Zero dependencies** | Pure Chrome extension — nothing else needed |
+
+---
 
 ## Supported Formats
 
 Works across all KEATS course layouts:
 
-| Format | Support |
-|--------|---------|
-| Grid (image tiles) | Full |
-| Topics (standard) | Full |
-| Collapsed Topics | Full |
-| One Topic (tabs) | Full |
+| Layout | Status |
+|--------|--------|
+| Grid (image tiles) | ✅ |
+| Topics (standard) | ✅ |
+| Collapsed Topics | ✅ |
+| One Topic (tabs) | ✅ |
 
 ### Downloadable Content
 
-| Type | Supported |
-|------|-----------|
-| Files (PDF, PPTX, DOCX, ZIP, etc.) | Yes |
-| Media (M4A, MP3, MP4, WMV) | Yes |
-| Moodle folders | Yes (expanded) |
-| Kaltura videos | Yes (direct MP4) |
-| Echo360 lecture captures | Yes (720p MP4) |
+| Type | Status |
+|------|--------|
+| Files (PDF, PPTX, DOCX, ZIP, etc.) | ✅ |
+| Media (M4A, MP3, MP4, WMV) | ✅ |
+| Moodle folders | ✅ Expanded |
+| Kaltura videos | ✅ Direct MP4 |
+| Echo360 lecture captures | ✅ 720p MP4 |
 | External URLs | Skipped |
 | Quizzes, forums, assignments | Skipped |
 
+---
+
 ## Other Universities
 
-This works on **any Moodle-based LMS** — not just KEATS. If your university uses Moodle, navigate to a course page and try it.
+Works on **any Moodle-based LMS** — not just KEATS. Navigate to a course page and click the icon.
 
-If your university's Moodle format isn't supported, [open an issue](../../issues).
+If your university's format isn't supported, [open an issue](../../issues).
+
+---
 
 ## Contributing
 
 Open source — pull requests welcome.
 
-- **Bugs** — [open an issue](../../issues) with a screenshot and the course URL
-- **Pull requests** — fork, fix, submit
-- **Feature requests** — suggest via issues
+- **Bugs** → [open an issue](../../issues) with a screenshot and course URL
+- **PRs** → fork, fix, submit
+- **Features** → suggest via issues
+
+---
 
 ## Background
 
-Inspired by the original [keats_downloader](https://github.com/memst/keats_downloader) by [@memst](https://github.com/memst), which was a Python/Selenium script for downloading Kaltura videos from KEATS. This project is a complete rewrite as a Chrome extension — no Python, no Selenium, no ffmpeg. It extends the scope beyond videos to all course materials, adds smart folder organisation, supports all Moodle course formats, and includes Echo360 lecture capture downloads.
+Inspired by the original [keats_downloader](https://github.com/memst/keats_downloader) by [@memst](https://github.com/memst), a Python/Selenium script for Kaltura video downloads. This is a complete rewrite as a Chrome extension — no Python, no Selenium, no ffmpeg. Extends scope to all course materials, adds smart organisation, supports all Moodle formats, and includes Echo360 lecture capture downloads.
 
-## License
+---
 
-MIT
+<p align="center">
+  <sub>MIT License · Built for KCL students</sub>
+</p>
