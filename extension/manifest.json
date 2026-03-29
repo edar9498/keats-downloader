@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "KEATS Downloader",
   "version": "1.0.0",
-  "description": "Download all course materials from Moodle-based LMS platforms. Organises files into folders by section with Lectures and Tutorials separated automatically.",
+  "description": "Download all KEATS course materials in one click. Slides, videos, podcasts — organised into folders.",
   "permissions": [
     "downloads",
     "downloads.ui",
