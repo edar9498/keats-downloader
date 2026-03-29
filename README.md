@@ -100,29 +100,15 @@ If your university's Moodle format isn't supported, [open an issue](../../issues
 
 ## Contributing
 
-Open source — contributions welcome.
+Open source — pull requests welcome.
 
 - **Bugs** — [open an issue](../../issues) with a screenshot and the course URL
 - **Pull requests** — fork, fix, submit
 - **Feature requests** — suggest via issues
 
-### Roadmap
+## Background
 
-- [ ] Chrome Web Store publishing
-- [ ] Selective section download (pick which weeks to download)
-- [ ] Download resume (skip already-downloaded files)
-- [ ] Panopto lecture capture support
-- [ ] Assignment brief downloads
-
-## Tech
-
-Pure Chrome extension (Manifest V3). No Python, no Selenium, no ffmpeg, no server. Uses:
-
-- `chrome.scripting.executeScript` for page scraping
-- `chrome.downloads` API for file management
-- `chrome.tabs` for background tab navigation
-- Kaltura API for direct MP4 video URLs
-- Echo360 syllabus API for lecture recording metadata
+Inspired by the original [keats_downloader](https://github.com/memst/keats_downloader) by [@memst](https://github.com/memst), which was a Python/Selenium script for downloading Kaltura videos from KEATS. This project is a complete rewrite as a Chrome extension — no Python, no Selenium, no ffmpeg. It extends the scope beyond videos to all course materials, adds smart folder organisation, supports all Moodle course formats, and includes Echo360 lecture capture downloads.
 
 ## License
 
