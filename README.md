@@ -11,6 +11,10 @@
 </p>
 
 <p align="center">
+  <sub>KEATS downloader · KCL KEATS download · King's College London lecture downloader · Moodle course downloader · download KEATS lectures · KEATS bulk download · KCL lecture slides download · KEATS video downloader · Moodle file downloader · university course material downloader</sub>
+</p>
+
+<p align="center">
   <a href="https://chrome.google.com/webstore"><img src="https://img.shields.io/badge/Chrome_Web_Store-coming_soon-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/version-1.0.0-c1002a?style=for-the-badge" alt="Version" /></a>
   <a href="../../blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c1002a?style=for-the-badge" alt="MIT License" /></a>
