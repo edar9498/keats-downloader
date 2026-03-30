@@ -8,6 +8,7 @@ function createChromeMock() {
       lastError: null,
       onMessage: { addListener: jest.fn() },
       onConnect: { addListener: jest.fn() },
+      connect: jest.fn(() => ({ onDisconnect: { addListener: jest.fn() }, disconnect: jest.fn() })),
       sendMessage: jest.fn().mockResolvedValue(undefined),
     },
     tabs: {
@@ -19,6 +20,9 @@ function createChromeMock() {
       onUpdated: {
         addListener: jest.fn(),
         removeListener: jest.fn(),
+      },
+      onRemoved: {
+        addListener: jest.fn(),
       },
     },
     downloads: {
@@ -44,6 +48,10 @@ function createChromeMock() {
     scripting: {
       executeScript: jest.fn().mockResolvedValue([{ result: [] }]),
     },
+    action: {
+      setBadgeText: jest.fn().mockResolvedValue(),
+      setBadgeBackgroundColor: jest.fn().mockResolvedValue(),
+    },
     storage: {
       local: (() => {
         let store = {};
@@ -51,6 +59,14 @@ function createChromeMock() {
           get: jest.fn((key) => Promise.resolve({ [key]: store[key] })),
           set: jest.fn((obj) => { Object.assign(store, obj); return Promise.resolve(); }),
           _clear: () => { store = {}; },
+        };
+      })(),
+      session: (() => {
+        let store = {};
+        return {
+          get: jest.fn((key) => Promise.resolve({ [key]: store[key] })),
+          set: jest.fn((obj) => { Object.assign(store, obj); return Promise.resolve(); }),
+          remove: jest.fn(() => Promise.resolve()),
         };
       })(),
     },

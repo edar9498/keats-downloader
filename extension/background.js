@@ -17,6 +17,111 @@ let state = {
   cancelled: false,
 };
 
+// ==================== New file detection ====================
+
+const _recentChecks = {};
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.url) return;
+
+  // Clear badge when navigating away from a course page
+  if (!/\/course\/view\.php/.test(tab.url)) {
+    chrome.action.setBadgeText({ text: '', tabId });
+    return;
+  }
+
+  // Debounce: skip if same tab+URL checked in last 60s
+  const cacheKey = `${tabId}:${tab.url.split('#')[0]}`;
+  const now = Date.now();
+  if (_recentChecks[cacheKey] && now - _recentChecks[cacheKey] < 60000) return;
+  _recentChecks[cacheKey] = now;
+
+  // Don't check during active download
+  if (state.status === 'scanning' || state.status === 'downloading') return;
+
+  try { await checkForNewFiles(tabId); } catch (e) {}
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  for (const key of Object.keys(_recentChecks)) {
+    if (key.startsWith(`${tabId}:`)) delete _recentChecks[key];
+  }
+});
+
+function scrapeFileHrefsLightweight() {
+  const h1 = document.querySelector('h1');
+  const courseName = h1 ? h1.textContent.trim() : document.title.trim();
+  const hrefs = new Set();
+
+  const selectors = [
+    '.activity.modtype_resource a[href*="/mod/resource/"]',
+    '.activity.modtype_folder a[href*="/mod/folder/"]',
+    '.activity.modtype_kalvidres a[href*="/mod/kalvid"]',
+    '.activity.modtype_kalvidpres a[href*="/mod/kalvid"]',
+  ];
+
+  for (const sel of selectors) {
+    for (const link of document.querySelectorAll(sel)) {
+      hrefs.add(link.href.split('#')[0].split('?')[0]);
+    }
+  }
+
+  return { courseName, hrefs: [...hrefs] };
+}
+
+async function checkForNewFiles(tabId) {
+  const result = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: scrapeFileHrefsLightweight,
+  });
+
+  const data = result[0]?.result;
+  if (!data || !data.courseName || data.hrefs.length === 0) {
+    chrome.action.setBadgeText({ text: '', tabId });
+    return;
+  }
+
+  const history = await getDownloadHistory();
+  const courseName = sanitize(data.courseName).substring(0, 80);
+
+  // Build set of known hrefs for this course
+  const knownHrefs = new Set();
+  for (const [key, entry] of Object.entries(history)) {
+    if (entry.course === courseName) {
+      const parts = key.split('|');
+      if (parts.length >= 4) {
+        const href = parts.slice(3).join('|').split('#')[0].split('?')[0];
+        knownHrefs.add(href);
+      }
+    }
+  }
+
+  // If no history for this course, don't show badge (first time)
+  if (knownHrefs.size === 0) {
+    chrome.action.setBadgeText({ text: '', tabId });
+    return;
+  }
+
+  // Count new files
+  let newCount = 0;
+  for (const href of data.hrefs) {
+    const norm = href.split('#')[0].split('?')[0];
+    if (!knownHrefs.has(norm)) newCount++;
+  }
+
+  if (newCount > 0) {
+    chrome.action.setBadgeBackgroundColor({ color: '#c1002a', tabId });
+    chrome.action.setBadgeText({ text: String(newCount), tabId });
+  } else {
+    chrome.action.setBadgeText({ text: '', tabId });
+  }
+
+  // Store for popup to read
+  await chrome.storage.session.set({
+    [`newFiles:${tabId}`]: { count: newCount, courseName, timestamp: Date.now() }
+  });
+}
+
 // ==================== Download history ====================
 
 async function getDownloadHistory() {
@@ -103,6 +208,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         saveDownloadHistory({}).then(() => sendResponse({ ok: true }));
       }
       return true; // async response
+    case 'CHECK_NEW_FILES':
+      checkForNewFiles(msg.tabId).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
   }
   return false;
 });
@@ -536,6 +644,14 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     state.currentFile = '';
     addLog(`\nDone! ${state.downloadedFiles} downloaded, ${state.failedFiles} failed.${skippedFiles > 0 ? ` ${skippedFiles} skipped (already downloaded).` : ''}`);
     broadcastProgress();
+
+    // Clear new-files badges on all tabs
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) {
+        chrome.action.setBadgeText({ text: '', tabId: t.id });
+      }
+    } catch (e) {}
 
   } catch (err) {
     state.status = 'error';

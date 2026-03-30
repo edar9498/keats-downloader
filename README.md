@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://chrome.google.com/webstore"><img src="https://img.shields.io/badge/Chrome_Web_Store-coming_soon-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.3.0-c1002a?style=for-the-badge" alt="Version" /></a>
+  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.4.0-c1002a?style=for-the-badge" alt="Version" /></a>
   <a href="../../blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c1002a?style=for-the-badge" alt="MIT License" /></a>
 </p>
 
@@ -88,6 +88,7 @@ Subfolders are created from section headings on the course page — lectures, tu
 | Feature | Details |
 |---------|---------|
 | **Bulk download** | Entire course in one click |
+| **Update notifications** | Badge on icon when a course has new files since last download |
 | **Smart sync** | Remembers what you've downloaded — only grabs new files on re-run |
 | **Smart folders** | Lectures, tutorials, assessments sorted automatically |
 | **Parallel downloads** | 3 concurrent downloads with automatic retry |
@@ -148,6 +149,9 @@ Open source — pull requests welcome.
 ---
 
 ## Changelog
+
+### v1.4.0
+- **Update notifications** — a badge appears on the extension icon when a course has new files since your last download. Open the popup to see how many.
 
 ### v1.3.0
 - **Smart sync** — the extension remembers every file you've downloaded. Re-running on the same course only downloads new or updated files, skipping everything you already have.

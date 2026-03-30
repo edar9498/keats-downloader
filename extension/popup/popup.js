@@ -238,6 +238,23 @@ async function init() {
     showView('notKeats');
   }
   loadLibrary();
+
+  // Check for new files
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (activeTab) {
+      await sendBg({ type: 'CHECK_NEW_FILES', tabId: activeTab.id });
+      const sessionData = await chrome.storage.session.get(`newFiles:${activeTab.id}`);
+      const info = sessionData[`newFiles:${activeTab.id}`];
+      if (info && info.count > 0) {
+        const el = $('#new-files-badge');
+        if (el) {
+          el.textContent = `${info.count} new file${info.count > 1 ? 's' : ''} since last download`;
+          el.classList.remove('hidden');
+        }
+      }
+    }
+  } catch (e) {}
 }
 
 // ---------- Download button ----------
