@@ -334,7 +334,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
       broadcastProgress();
 
       try {
-        await downloadSingleFile(file, basePath);
+        await downloadWithRetry(file, basePath, 3);
         state.downloadedFiles++;
         addLog(`Downloaded: ${file.name}`);
       } catch (err) {
@@ -732,6 +732,26 @@ function scrapeEcho360Syllabus(sectionId) {
     .catch(() => []);
 }
 
+// ==================== Download with retry ====================
+
+async function downloadWithRetry(file, basePath, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await downloadSingleFile(file, basePath);
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+        addLog(`  Retry ${attempt}/${maxRetries - 1} for: ${file.name}`);
+        await sleep(delay);
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ==================== Download handler ====================
 
 async function downloadSingleFile(file, basePath) {
@@ -873,4 +893,15 @@ function addLog(msg) {
 
 function broadcastProgress() {
   chrome.runtime.sendMessage({ type: 'PROGRESS_UPDATE', state: { ...state } }).catch(() => {});
+}
+
+// Expose internals for testing (no-op in Chrome extension context)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    sanitize, addLog, sleep, downloadWithRetry,
+    scrapeSectionPage, scrapeInlineSection, scrapeFolderPage,
+    scrapeEcho360LTI, isMoodleCoursePage: undefined,
+    get state() { return state; },
+    set state(s) { state = s; },
+  };
 }
