@@ -3,6 +3,32 @@ const { createChromeMock } = require('./chrome-mock');
 // Set up Chrome mock before loading background.js
 global.chrome = createChromeMock();
 
+// Mock fetch for downloadSingleFile (returns a fake blob)
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  status: 200,
+  url: 'https://example.com/resolved-file.pdf',
+  headers: new Map([['Content-Disposition', 'attachment; filename="test.pdf"'], ['Content-Type', 'application/pdf']]),
+  blob: () => Promise.resolve({
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
+    type: 'application/pdf',
+  }),
+});
+// Patch headers.get
+global.fetch.mockResolvedValue({
+  ok: true,
+  status: 200,
+  url: 'https://example.com/resolved-file.pdf',
+  headers: { get: (h) => h === 'Content-Disposition' ? 'attachment; filename="test.pdf"' : 'application/pdf' },
+  blob: () => Promise.resolve({
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
+    type: 'application/pdf',
+  }),
+});
+
+// Mock btoa for Node
+global.btoa = (str) => Buffer.from(str, 'binary').toString('base64');
+
 const bg = require('../extension/background');
 
 describe('sanitize', () => {
@@ -43,7 +69,7 @@ describe('addLog', () => {
   beforeEach(() => {
     bg.state = {
       status: 'idle', courseName: '', totalFiles: 0, downloadedFiles: 0,
-      failedFiles: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false,
+      failedFiles: 0, scannedSections: 0, totalSections: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false,
     };
   });
 
@@ -77,7 +103,7 @@ describe('downloadWithRetry', () => {
   beforeEach(() => {
     bg.state = {
       status: 'idle', courseName: '', totalFiles: 0, downloadedFiles: 0,
-      failedFiles: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false,
+      failedFiles: 0, scannedSections: 0, totalSections: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false,
     };
   });
 
@@ -132,8 +158,8 @@ describe('downloadWithRetry', () => {
     });
 
     const file = {
-      name: 'fail.pdf', href: 'https://example.com/fail.pdf',
-      type: 'resource', sectionName: 'Week 1',
+      name: 'fail.mp4', href: 'https://example.com/fail.mp4',
+      type: 'echo360', sectionName: 'Week 1',
     };
 
     await expect(bg.downloadWithRetry(file, 'KEATS/', 2)).rejects.toThrow('Server error');

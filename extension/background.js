@@ -1,6 +1,7 @@
 // Background service worker - orchestrates scraping and downloads
 // Supports any Moodle-based LMS (KEATS, Moodle, etc.) + Echo360 lecture recordings
 
+
 let state = {
   status: 'idle', // idle | scanning | downloading | complete | error | cancelled
   courseName: '',
@@ -53,7 +54,11 @@ async function isAlreadyDownloaded(courseName, file) {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case 'START_DOWNLOAD':
-      startDownload(msg.tabId, msg.courseInfo, msg.options);
+      startDownload(msg.tabId, msg.courseInfo, msg.options).catch(err => {
+        state.status = 'error';
+        addLog(`Error: ${err.message}`);
+        broadcastProgress();
+      });
       sendResponse({ ok: true });
       break;
     case 'GET_STATUS':
@@ -102,51 +107,56 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-// ---------- Resolve filename from URL ----------
+// ---------- Fetch file as blob and resolve filename ----------
 
-async function resolveFilename(url) {
-  try {
-    const resp = await fetch(url, { method: 'GET', credentials: 'include', redirect: 'follow' });
-    const cd = resp.headers.get('Content-Disposition') || '';
-    // Abort the body - we only needed headers + final URL
-    resp.body?.cancel();
+async function fetchFileBlob(url) {
+  const resp = await fetch(url, { redirect: 'follow' });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    // Try Content-Disposition header first
-    const match = cd.match(/filename\*?=["']?(?:UTF-8'')?([^"';\r\n]+)/i);
-    if (match) {
-      return sanitize(decodeURIComponent(match[1]));
-    }
-
-    // Fall back to final URL path
-    const finalUrl = resp.url;
-    const urlPath = new URL(finalUrl).pathname;
+  // Resolve filename from headers
+  const cd = resp.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename\*?=["']?(?:UTF-8'')?([^"';\r\n]+)/i);
+  let filename = null;
+  if (match) {
+    filename = sanitize(decodeURIComponent(match[1]));
+  } else {
+    const urlPath = new URL(resp.url).pathname;
     const urlFilename = decodeURIComponent(urlPath.split('/').pop());
     if (urlFilename && urlFilename.includes('.') && !urlFilename.endsWith('.php')) {
-      return sanitize(urlFilename);
+      filename = sanitize(urlFilename);
     }
-  } catch (e) {
-    // Fetch failed - fall back
   }
-  return null;
+
+  const blob = await resp.blob();
+  return { blob, filename };
+}
+
+async function blobToDataUrl(blob) {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const chunks = [];
+  for (let i = 0; i < bytes.length; i += 8192) {
+    chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)));
+  }
+  const base64 = btoa(chunks.join(''));
+  const mimeType = blob.type || 'application/octet-stream';
+  return `data:${mimeType};base64,${base64}`;
 }
 
 // ---------- Core workflow ----------
 
 async function startDownload(_tabId, courseInfo, options = {}) {
-  const doMaterials = options.materials !== false;
-  const doVideos = options.videos === true;      // Kaltura videos in weekly sections
-  const doCaptures = options.captures === true;  // Echo360 lecture captures
-  const doFolders = options.folders !== false;
-  const doOptional = options.optional === true;
+  const sectionCount = courseInfo?.sections?.length || 0;
+  const cName = courseInfo?.courseName || 'Unknown';
 
   state = {
     status: 'scanning',
-    courseName: courseInfo.courseName,
+    courseName: cName,
     totalFiles: 0,
     downloadedFiles: 0,
     failedFiles: 0,
     scannedSections: 0,
-    totalSections: courseInfo.sections.length,
+    totalSections: sectionCount,
     currentFile: '',
     log: [],
     errors: [],
@@ -154,12 +164,20 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     cancelled: false,
   };
 
-  const courseName = sanitize(courseInfo.courseName).substring(0, 80);
-  const basePath = `KEATS Downloads/${courseName}/`;
+  const doMaterials = options.materials !== false;
+  const doVideos = options.videos === true;
+  const doCaptures = options.captures === true;
+  const doFolders = options.folders !== false;
+  const doOptional = options.optional === true;
+
+  const courseName = sanitize(cName).substring(0, 80);
+  const downloadFolder = sanitize(options.downloadPath || 'KEATS Downloads');
+  const basePath = `${downloadFolder}/${courseName}/`;
 
   addLog(`Course: ${courseName}`);
-  addLog(`Sections: ${courseInfo.sections.length}`);
-  if (doVideos) addLog(`Echo360 video download enabled`);
+  addLog(`Sections: ${sectionCount}`);
+  if (doVideos) addLog(`Kaltura video download enabled`);
+  if (doCaptures) addLog(`Echo360 capture download enabled`);
   broadcastProgress();
 
   const tempTab = await chrome.tabs.create({ url: 'about:blank', active: false });
@@ -179,18 +197,24 @@ async function startDownload(_tabId, courseInfo, options = {}) {
         addLog(`Scanning all ${courseInfo.sections.length} sections...`);
         broadcastProgress();
 
+        addLog(`Loading course page...`);
+        broadcastProgress();
         await navigateTab(tempTabId, coursePageUrl);
         await sleep(1500);
 
         const sectionIds = courseInfo.sections.map(s => s.sectionId);
+        addLog(`Expanding sections...`);
+        broadcastProgress();
 
         // Expand any collapsed sections first, then wait for DOM to update
         const expandedCount = await executeScrape(tempTabId, expandCollapsedSections, sectionIds);
         if (expandedCount > 0) {
-          addLog(`Expanding ${expandedCount} collapsed sections...`);
+          addLog(`Expanded ${expandedCount} collapsed sections`);
           await sleep(1000);
         }
 
+        addLog(`Scraping content...`);
+        broadcastProgress();
         const batchResults = await executeScrape(tempTabId, scrapeAllInlineSections, sectionIds, doOptional);
 
         for (let i = 0; i < courseInfo.sections.length; i++) {
@@ -270,6 +294,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
           const sectionName = sanitize(section.name);
           if (!sectionName || /^-+$/.test(sectionName)) continue;
 
+          state.scannedSections = i;
           addLog(`Scanning ${i + 1}/${courseInfo.sections.length}: ${sectionName}`);
           broadcastProgress();
 
@@ -345,7 +370,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
           }
           allFiles.push(...expandedFiles);
           state.sections.push({ name: sectionName, fileCount: expandedFiles.length });
-          state.scannedSections++;
+          state.scannedSections = i + 1;
           broadcastProgress();
         }
       }
@@ -479,7 +504,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     // Hide Chrome's download bar/bubble during bulk download
     try { await chrome.downloads.setUiOptions({ enabled: false }); } catch (e) {}
 
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 3;
     let idx = 0;
 
     async function worker() {
@@ -519,6 +544,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     try { await chrome.tabs.remove(tempTabId); } catch (e) {}
     try { await chrome.downloads.setUiOptions({ enabled: true }); } catch (e) {}
   }
+
 }
 
 // ==================== Scraping functions (injected into tabs) ====================
@@ -1024,27 +1050,34 @@ async function downloadSingleFile(file, basePath) {
     url = url + sep + 'redirect=1';
   }
 
-  // Resolve the actual filename from the server
+  // Determine filename and fetch content
   let filename;
+  let downloadUrl;
+
   if (file.type === 'folderFile') {
     const urlPath = new URL(file.href).pathname;
     filename = sanitize(decodeURIComponent(urlPath.split('/').pop()));
   } else if (file.type === 'kalturaDownload' || file.type === 'echo360') {
-    // Video files - use the activity name + .mp4
     filename = sanitize(file.name) + '.mp4';
-  } else {
-    filename = await resolveFilename(url);
   }
 
-  if (!filename) {
-    filename = sanitize(file.name) || 'download';
+  if (file.type === 'echo360' || file.type === 'kalturaDownload') {
+    // Video files: download directly from CDN (too large for data URL)
+    downloadUrl = url;
+    if (!filename) filename = sanitize(file.name) + '.mp4';
+  } else {
+    // Fetch file content and convert to data URL to bypass save dialog
+    const fetched = await fetchFileBlob(url);
+    if (fetched.filename) filename = fetched.filename;
+    if (!filename) filename = sanitize(file.name) || 'download';
+    downloadUrl = await blobToDataUrl(fetched.blob);
   }
 
   const fullPath = dirPath + filename;
 
   return new Promise((resolve, reject) => {
     chrome.downloads.download(
-      { url, filename: fullPath, saveAs: false, conflictAction: 'uniquify' },
+      { url: downloadUrl, filename: fullPath, saveAs: false, conflictAction: 'uniquify' },
       (downloadId) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
@@ -1094,8 +1127,9 @@ async function executeScrape(tabId, func, ...args) {
 
 function navigateTab(tabId, url) {
   return new Promise((resolve, reject) => {
+    let listener = null;
     const timeout = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(listener);
+      if (listener) chrome.tabs.onUpdated.removeListener(listener);
       resolve(); // Resolve anyway after timeout
     }, 30000);
 
@@ -1106,7 +1140,7 @@ function navigateTab(tabId, url) {
         return;
       }
 
-      const listener = (id, info) => {
+      listener = (id, info) => {
         if (id === tabId && info.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(listener);
           clearTimeout(timeout);
@@ -1145,7 +1179,7 @@ function broadcastProgress() {
 // Expose internals for testing (no-op in Chrome extension context)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    sanitize, addLog, sleep, downloadWithRetry, fileKey,
+    sanitize, addLog, sleep, downloadWithRetry, fileKey, blobToDataUrl, fetchFileBlob,
     scrapeSectionPage, scrapeInlineSection, scrapeAllInlineSections, scrapeFolderPage,
     scrapeEcho360LTI, isMoodleCoursePage: undefined,
     get state() { return state; },

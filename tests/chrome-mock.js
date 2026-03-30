@@ -7,6 +7,7 @@ function createChromeMock() {
     runtime: {
       lastError: null,
       onMessage: { addListener: jest.fn() },
+      onConnect: { addListener: jest.fn() },
       sendMessage: jest.fn().mockResolvedValue(undefined),
     },
     tabs: {

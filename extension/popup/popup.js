@@ -26,11 +26,7 @@ function initTheme() {
   if (saved === 'dark') {
     document.body.classList.add('dark');
     $('#theme-toggle').checked = true;
-  } else if (saved === 'light') {
-    document.body.classList.remove('dark');
-    $('#theme-toggle').checked = false;
   } else {
-    // Default to light
     document.body.classList.remove('dark');
     $('#theme-toggle').checked = false;
   }
@@ -46,10 +42,86 @@ $('#theme-toggle').addEventListener('change', (e) => {
   }
 });
 
+// ---------- Download path ----------
+
+async function loadDownloadPath() {
+  try {
+    const data = await chrome.storage.local.get('downloadPath');
+    const path = data.downloadPath || 'KEATS Downloads';
+    $('#download-path').value = path;
+    autoSizePath();
+  } catch (e) {}
+}
+
+function autoSizePath() {
+  const input = $('#download-path');
+  if (input) input.style.width = Math.max(40, input.value.length * 7) + 'px';
+}
+
+$('#download-path').addEventListener('input', autoSizePath);
+$('#download-path').addEventListener('change', () => {
+  const val = $('#download-path').value.trim() || 'KEATS Downloads';
+  $('#download-path').value = val;
+  chrome.storage.local.set({ downloadPath: val });
+  autoSizePath();
+});
+
+// ---------- Library ----------
+
+async function loadLibrary() {
+  try {
+    const history = await sendBg({ type: 'GET_HISTORY' });
+    const list = $('#library-list');
+    const empty = $('#library-empty');
+    const library = $('#library');
+
+    if (!history || history.total === 0) {
+      library.classList.add('hidden');
+      return;
+    }
+
+    library.classList.remove('hidden');
+    list.innerHTML = '';
+    empty.classList.add('hidden');
+
+    const courses = Object.entries(history.courses)
+      .sort((a, b) => b[1].lastDownload - a[1].lastDownload);
+
+    for (const [name, info] of courses) {
+      const date = new Date(info.lastDownload);
+      const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const item = document.createElement('div');
+      item.className = 'library-item';
+      item.innerHTML = `
+        <div class="library-item-info">
+          <div class="library-item-name">${esc(name)}</div>
+          <div class="library-item-meta">${info.count} files · ${dateStr}</div>
+        </div>
+        <button class="btn-text btn-clear-course" data-course="${esc(name)}">Clear</button>
+      `;
+      list.appendChild(item);
+    }
+
+    list.querySelectorAll('.btn-clear-course').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const course = e.target.getAttribute('data-course');
+        await sendBg({ type: 'CLEAR_HISTORY', course });
+        loadLibrary();
+      });
+    });
+  } catch (e) {}
+}
+
+$('#btn-clear-all').addEventListener('click', async () => {
+  await sendBg({ type: 'CLEAR_HISTORY' });
+  loadLibrary();
+});
+
 // ---------- Init ----------
 
 async function init() {
   initTheme();
+  await loadDownloadPath();
 
   // Check if we already have an active download
   try {
@@ -59,22 +131,23 @@ async function init() {
       updateProgress(status);
       return;
     }
-    if (status && status.status === 'complete') {
+    if (status && (status.status === 'complete' || status.status === 'cancelled' || status.status === 'error')) {
       showView('complete');
       updateComplete(status);
       return;
     }
-  } catch (e) { /* no active status */ }
+  } catch (e) {}
 
   // Check current tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   if (!isMoodleCoursePage(tab?.url)) {
     showView('notKeats');
+    loadLibrary();
     return;
   }
 
-  // Scrape course info - handles BOTH grid format (section links) and topics format (inline sections)
+  // Scrape course info
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -82,20 +155,22 @@ async function init() {
         const h1 = document.querySelector('h1');
         const courseName = h1 ? h1.textContent.trim() : document.title.trim();
         const courseUrl = window.location.href.split('#')[0];
-        // Method 1: Grid format - sections are links to separate pages
         const gridSections = [];
         const seen = {};
-        const sectionLinks = document.querySelectorAll('a[href*="course/section.php?id="]');
+        const sectionLinks = document.querySelectorAll(
+          'a[href*="course/section.php?id="], ' +
+          'a[href*="course/view.php"][href*="section="], ' +
+          '.grid-section a[href], .gridicon_link, #gridicons a[href]'
+        );
         for (const link of sectionLinks) {
           const href = link.href.split('#')[0];
-          const text = link.textContent.trim();
-          if (!seen[href] && text && !text.startsWith('Go to section')) {
+          const text = (link.textContent || '').trim().replace(/\s+/g, ' ');
+          if (!seen[href] && text && text.length > 1 && !text.startsWith('Go to section')) {
             seen[href] = true;
             gridSections.push({ href, name: text });
           }
         }
 
-        // Method 2: Topics/weekly/topcoll format - sections are inline on the page
         const inlineSectionsArr = [];
         const inlineSections = document.querySelectorAll(
           '#region-main .section.course-section[data-id], ' +
@@ -110,9 +185,7 @@ async function init() {
           const name = nameEl ? nameEl.textContent.trim() : null;
           const sectionId = sec.getAttribute('data-id');
           const sectionNum = sec.getAttribute('data-number');
-
           if (!sectionId) continue;
-
           inlineSectionsArr.push({
             href: courseUrl + '#section-inline-' + sectionId,
             name: name || ('Section ' + (sectionNum || sectionId)),
@@ -121,18 +194,14 @@ async function init() {
           });
         }
 
-        // Method 3: Onetopic format - sections as tabs
         const tabSections = [];
         const tabs = document.querySelectorAll('.onetopic .nav-tabs .nav-link, .onetopic-tab-list a, ul.nav-tabs li a[href*="section="]');
         for (const tab of tabs) {
           const href = tab.href;
           const text = tab.textContent.trim();
-          if (href && text && text.length > 0) {
-            tabSections.push({ href, name: text });
-          }
+          if (href && text && text.length > 0) tabSections.push({ href, name: text });
         }
 
-        // Use whichever method found the most sections
         let sections, format;
         const counts = [
           { arr: inlineSectionsArr, fmt: 'topics' },
@@ -142,7 +211,6 @@ async function init() {
         counts.sort((a, b) => b.arr.length - a.arr.length);
         sections = counts[0].arr;
         format = counts[0].fmt;
-
         return { courseName, sections, courseUrl, format };
       },
     });
@@ -151,14 +219,14 @@ async function init() {
     if (info && info.courseName && info.sections.length > 0) {
       $('#course-name').textContent = info.courseName;
       $('#section-count').textContent = info.sections.length;
+      $('#path-course-name').textContent = info.courseName.substring(0, 30);
       showView('ready');
       window._courseInfo = info;
       window._tabId = tab.id;
     } else if (info && info.courseName) {
-      // Course page found but no sections detected — still allow download attempt
-      // The page might have activities directly without sections
       $('#course-name').textContent = info.courseName;
       $('#section-count').textContent = '0';
+      $('#path-course-name').textContent = info.courseName.substring(0, 30);
       showView('ready');
       window._courseInfo = info;
       window._courseInfo.sections = [{ href: info.courseUrl, name: info.courseName, inline: false }];
@@ -169,6 +237,7 @@ async function init() {
   } catch (e) {
     showView('notKeats');
   }
+  loadLibrary();
 }
 
 // ---------- Download button ----------
@@ -176,26 +245,11 @@ async function init() {
 $('#btn-download').addEventListener('click', async () => {
   const btn = $('#btn-download');
   btn.disabled = true;
-  btn.textContent = 'Checking settings...';
-
-  // Test if Chrome will show a save dialog (user has "Ask where to save" enabled)
-  const saveAsEnabled = await checkSaveAsSetting();
-  if (saveAsEnabled) {
-    btn.disabled = false;
-    btn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Download All
-    `;
-    showSaveAsWarning();
-    return;
-  }
-
   btn.textContent = 'Starting...';
   showView('progress');
+
+  const downloadPath = $('#download-path').value.trim() || 'KEATS Downloads';
+  chrome.storage.local.set({ downloadPath });
 
   await sendBg({
     type: 'START_DOWNLOAD',
@@ -207,80 +261,29 @@ $('#btn-download').addEventListener('click', async () => {
       captures: $('#opt-captures').checked,
       folders: $('#opt-folders').checked,
       optional: $('#opt-optional').checked,
+      downloadPath,
     },
   });
 });
 
-async function checkSaveAsSetting() {
-  // Download a tiny data URL and see if it completes immediately or gets user-prompted
-  return new Promise((resolve) => {
-    const dataUrl = 'data:text/plain;base64,dGVzdA=='; // "test"
-    chrome.downloads.download(
-      { url: dataUrl, filename: '.keats-test-delete-me.tmp', saveAs: false, conflictAction: 'overwrite' },
-      (id) => {
-        if (chrome.runtime.lastError || id === undefined) {
-          resolve(false); // Can't tell, assume ok
-          return;
-        }
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            // If it hasn't completed in 500ms, the save dialog is probably showing
-            chrome.downloads.cancel(id);
-            chrome.downloads.erase({ id });
-            resolve(true);
-          }
-        }, 500);
-
-        const listener = (delta) => {
-          if (delta.id !== id) return;
-          if (delta.state && delta.state.current === 'complete') {
-            if (!settled) {
-              settled = true;
-              clearTimeout(timeout);
-              chrome.downloads.onChanged.removeListener(listener);
-              // Clean up the test file
-              chrome.downloads.removeFile(id);
-              chrome.downloads.erase({ id });
-              resolve(false);
-            }
-          }
-        };
-        chrome.downloads.onChanged.addListener(listener);
-      }
-    );
-  });
-}
-
-function showSaveAsWarning() {
-  let warning = $('#save-as-warning');
-  if (!warning) {
-    warning = document.createElement('div');
-    warning.id = 'save-as-warning';
-    warning.className = 'warning-banner';
-    warning.innerHTML = `
-      <p><strong>Chrome will ask where to save each file.</strong></p>
-      <p>To fix this, disable "Ask where to save each file" in
-      <a href="#" id="open-chrome-downloads">chrome://settings/downloads</a></p>
-    `;
-    const readyCard = $('#ready');
-    readyCard.insertBefore(warning, $('#btn-download'));
-
-    $('#open-chrome-downloads').addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: 'chrome://settings/downloads' });
-    });
-  }
-  warning.classList.remove('hidden');
-}
-
 // ---------- Cancel button ----------
 
 $('#btn-cancel').addEventListener('click', async () => {
-  await sendBg({ type: 'CANCEL' });
-  $('#btn-cancel').textContent = 'Cancelling...';
-  $('#btn-cancel').disabled = true;
+  try { await sendBg({ type: 'CANCEL' }); } catch (e) {}
+  showView('ready');
+  const btn = $('#btn-download');
+  btn.disabled = false;
+  btn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Download All
+  `;
+  $('#btn-cancel').textContent = 'Cancel';
+  $('#btn-cancel').disabled = false;
+  loadLibrary();
 });
 
 // ---------- Done button ----------
@@ -298,12 +301,12 @@ $('#btn-done').addEventListener('click', () => {
     </svg>
     Download All
   `;
-  const cancelBtn = $('#btn-cancel');
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.disabled = false;
+  $('#btn-cancel').textContent = 'Cancel';
+  $('#btn-cancel').disabled = false;
+  loadLibrary();
 });
 
-// ---------- Progress updates ----------
+// ---------- Progress updates (push-based, no polling) ----------
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'PROGRESS_UPDATE') {
@@ -326,12 +329,14 @@ function updateProgress(s) {
   if (s.status === 'scanning') {
     statusBadge.textContent = 'Scanning';
     statusBadge.className = 'status-badge';
+    progressBar.classList.add('scanning');
     const scanPct = s.totalSections > 0
       ? Math.round(s.scannedSections / s.totalSections * 100) : 0;
     progressBar.style.width = scanPct + '%';
     progressCount.textContent = s.totalSections > 0
       ? `${s.scannedSections} / ${s.totalSections} sections` : '';
   } else {
+    progressBar.classList.remove('scanning');
     statusBadge.textContent = 'Downloading';
     statusBadge.className = 'status-badge downloading';
     const pct = s.totalFiles > 0
@@ -345,6 +350,7 @@ function updateProgress(s) {
   $('#log').innerHTML = s.log.map(line => {
     if (line.startsWith('Downloaded:')) return `<span class="log-success">${esc(line)}</span>`;
     if (line.startsWith('Failed:') || line.startsWith('Error:')) return `<span class="log-error">${esc(line)}</span>`;
+    if (line.startsWith('Skipped')) return `<span class="log-info">${esc(line)}</span>`;
     if (line.startsWith('Course:') || line.startsWith('Sections:') || line.startsWith('Found') || line.startsWith('Done') || line.startsWith('Downloading'))
       return `<span class="log-info">${esc(line)}</span>`;
     return esc(line);
@@ -363,6 +369,9 @@ function updateComplete(s) {
   $('#stat-downloaded').textContent = s.downloadedFiles;
   $('#stat-failed').textContent = s.failedFiles;
   $('#stat-failed').parentElement.style.display = s.failedFiles > 0 ? 'flex' : 'none';
+
+  const path = $('#download-path')?.value || 'KEATS Downloads';
+  $('#save-path').innerHTML = `Saved to <strong>Downloads/${esc(path)}/</strong>`;
 }
 
 // ---------- Helpers ----------

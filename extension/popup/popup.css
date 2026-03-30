@@ -369,6 +369,16 @@ body.dark .toggle input:checked + .toggle-slider {
   transition: width 0.4s ease;
 }
 
+.progress-bar.scanning {
+  animation: pulse 1.5s ease-in-out infinite;
+  min-width: 8%;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .current-file {
   font-size: 11px;
   color: var(--dim);
@@ -426,6 +436,154 @@ body.dark .toggle input:checked + .toggle-slider {
 }
 
 .save-path strong { color: var(--muted); }
+
+/* ========== Download Path ========== */
+
+.download-path-row {
+  margin: 12px 0 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+
+.path-bar {
+  display: flex;
+  align-items: center;
+  background: var(--log-bg);
+  border: 1px solid var(--log-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  gap: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  font-size: 11.5px;
+  overflow: hidden;
+}
+
+.path-icon {
+  flex-shrink: 0;
+  color: var(--dim);
+  margin-right: 7px;
+}
+
+.path-crumb {
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.path-crumb.course-crumb {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.path-sep {
+  color: var(--dim);
+  margin: 0 3px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.path-bar input {
+  border: none;
+  background: none;
+  font-size: 11.5px;
+  color: var(--text);
+  font-weight: 600;
+  padding: 0;
+  outline: none;
+  min-width: 40px;
+  width: auto;
+  font-family: inherit;
+}
+
+.path-bar input:focus {
+  color: var(--red);
+}
+
+.path-bar input::placeholder {
+  color: var(--dim);
+  font-weight: 400;
+}
+
+/* ========== Library ========== */
+
+.library-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.library-header h3 {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+  color: var(--dim);
+  font-weight: 600;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-text:hover { background: rgba(193, 0, 42, 0.06); }
+
+.library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.library-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--log-bg);
+  border-radius: 8px;
+  border: 1px solid var(--log-border);
+}
+
+.library-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.library-item-meta {
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 1px;
+}
+
+.library-item .btn-text {
+  flex-shrink: 0;
+  font-size: 9px;
+}
+
+.library-empty {
+  text-align: center;
+  color: var(--dim);
+  font-size: 11px;
+  padding: 8px;
+}
 
 /* ========== Warning Banner ========== */
 

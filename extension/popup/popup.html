@@ -35,6 +35,16 @@
       </div>
     </div>
 
+    <!-- Library -->
+    <div id="library" class="card hidden">
+      <div class="library-header">
+        <h3>Downloaded Courses</h3>
+        <button id="btn-clear-all" class="btn-text" title="Clear all history">Clear all</button>
+      </div>
+      <div id="library-list" class="library-list"></div>
+      <p id="library-empty" class="library-empty hidden">No downloads yet</p>
+    </div>
+
     <!-- Ready -->
     <div id="ready" class="card hidden">
       <div class="course-info">
@@ -70,6 +80,19 @@
           <input type="checkbox" id="opt-optional">
           <span>Include optional resources</span>
         </label>
+      </div>
+
+      <div class="download-path-row">
+        <div class="path-bar">
+          <svg class="path-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+          </svg>
+          <span class="path-crumb">Downloads</span>
+          <span class="path-sep">/</span>
+          <input type="text" id="download-path" value="KEATS Downloads" spellcheck="false" placeholder="Folder name">
+          <span class="path-sep">/</span>
+          <span class="path-crumb course-crumb" id="path-course-name"></span>
+        </div>
       </div>
 
       <button id="btn-download" class="btn-primary">
@@ -117,7 +140,7 @@
           <span class="stat-label">Failed</span>
         </div>
       </div>
-      <p class="save-path">Saved to <strong>Downloads/KEATS Downloads/</strong></p>
+      <p id="save-path" class="save-path">Saved to <strong>Downloads/KEATS Downloads/</strong></p>
       <button id="btn-done" class="btn-primary">Done</button>
     </div>
 
@@ -128,7 +151,7 @@
         </svg>
         Saif-AD
       </a>
-      <span class="version">v1.2.0</span>
+      <span class="version">v1.3.0</span>
     </footer>
   </div>
 

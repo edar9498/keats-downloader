@@ -3,7 +3,7 @@ module.exports = {
   projects: [
     {
       displayName: 'node',
-      testMatch: ['<rootDir>/tests/background.test.js'],
+      testMatch: ['<rootDir>/tests/background.test.js', '<rootDir>/tests/integration.test.js'],
       testEnvironment: 'node',
     },
     {
