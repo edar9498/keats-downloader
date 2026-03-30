@@ -44,7 +44,7 @@
 3. Pick what to download
 4. Hit **Download All**
 
-Everything saves to `Downloads/KEATS Downloads/` in organised folders.
+Everything saves to `Downloads/KEATS Downloads/` in organised folders. Run it again later to grab only new files.
 
 </td>
 <td width="50%">
@@ -88,13 +88,18 @@ Subfolders are created from section headings on the course page — lectures, tu
 | Feature | Details |
 |---------|---------|
 | **Bulk download** | Entire course in one click |
+| **Smart sync** | Remembers what you've downloaded — only grabs new files on re-run |
 | **Smart folders** | Lectures, tutorials, assessments sorted automatically |
+| **Parallel downloads** | 3 concurrent downloads with automatic retry |
 | **Kaltura videos** | Embedded lecture videos → MP4 |
 | **Echo360 captures** | Recorded lectures → 720p MP4 |
 | **Folder expansion** | Moodle folders unpacked and downloaded |
+| **Download library** | See all courses you've downloaded with file counts |
+| **Custom save path** | Choose your download folder name |
 | **Optional filtering** | Skip supplementary materials |
+| **Progress tracking** | Live progress bar for scanning and downloading |
 | **Light / dark mode** | Toggle in the popup |
-| **No install spam** | Download bar hidden during bulk downloads |
+| **No save dialogs** | Files download silently — no popups |
 | **Zero dependencies** | Pure Chrome extension — nothing else needed |
 
 ---
@@ -139,6 +144,23 @@ Open source — pull requests welcome.
 - **Bugs** → [open an issue](../../issues) with a screenshot and course URL
 - **PRs** → fork, fix, submit
 - **Features** → suggest via issues
+
+---
+
+## Changelog
+
+### v1.3.0
+- **Smart sync** — the extension remembers every file you've downloaded. Re-running on the same course only downloads new or updated files, skipping everything you already have.
+- **Download library** — popup shows all courses you've downloaded with file counts. Clear per-course to force a full re-download.
+- **Custom download path** — choose where files are saved within your Downloads folder.
+- **Parallel downloads** — 3 files download at once instead of one at a time.
+- **Retry with backoff** — failed downloads automatically retry up to 3 times.
+- **No save dialogs** — files download silently regardless of your Chrome settings.
+- **Progress bars** — live progress during both scanning and downloading phases.
+- **Better format support** — improved detection for Grid, Collapsed Topics, and other Moodle layouts.
+
+### v1.0.0
+- Initial release. Bulk download of course materials, Kaltura videos, Echo360 lecture captures, smart folder organisation, light/dark mode.
 
 ---
 
