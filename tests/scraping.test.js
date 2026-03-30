@@ -221,6 +221,39 @@ describe('scrapeFolderPage', () => {
   });
 });
 
+describe('scrapeAllInlineSections', () => {
+  test('scrapes multiple sections in one call', () => {
+    document.body.innerHTML = `
+      <div id="region-main">
+        <li id="section-1" data-id="100" class="section main">
+          <div class="activity modtype_resource">
+            <a href="https://keats.kcl.ac.uk/mod/resource/view.php?id=1">Slides Week 1</a>
+          </div>
+        </li>
+        <li id="section-2" data-id="200" class="section main">
+          <div class="activity modtype_resource">
+            <a href="https://keats.kcl.ac.uk/mod/resource/view.php?id=2">Slides Week 2</a>
+          </div>
+          <div class="activity modtype_resource">
+            <a href="https://keats.kcl.ac.uk/mod/resource/view.php?id=3">Notes Week 2</a>
+          </div>
+        </li>
+      </div>
+    `;
+    const results = bg.scrapeAllInlineSections(['100', '200'], false);
+    expect(Object.keys(results)).toHaveLength(2);
+    expect(results['100']).toHaveLength(1);
+    expect(results['200']).toHaveLength(2);
+    expect(results['100'][0].name).toBe('Slides Week 1');
+  });
+
+  test('returns empty array for missing sections', () => {
+    document.body.innerHTML = '<div id="region-main"></div>';
+    const results = bg.scrapeAllInlineSections(['999'], false);
+    expect(results['999']).toEqual([]);
+  });
+});
+
 describe('scrapeEcho360LTI', () => {
   test('finds lecture capture LTI links', () => {
     document.body.innerHTML = `

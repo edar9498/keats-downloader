@@ -176,6 +176,24 @@ async function init() {
 $('#btn-download').addEventListener('click', async () => {
   const btn = $('#btn-download');
   btn.disabled = true;
+  btn.textContent = 'Checking settings...';
+
+  // Test if Chrome will show a save dialog (user has "Ask where to save" enabled)
+  const saveAsEnabled = await checkSaveAsSetting();
+  if (saveAsEnabled) {
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download All
+    `;
+    showSaveAsWarning();
+    return;
+  }
+
   btn.textContent = 'Starting...';
   showView('progress');
 
@@ -192,6 +210,70 @@ $('#btn-download').addEventListener('click', async () => {
     },
   });
 });
+
+async function checkSaveAsSetting() {
+  // Download a tiny data URL and see if it completes immediately or gets user-prompted
+  return new Promise((resolve) => {
+    const dataUrl = 'data:text/plain;base64,dGVzdA=='; // "test"
+    chrome.downloads.download(
+      { url: dataUrl, filename: '.keats-test-delete-me.tmp', saveAs: false, conflictAction: 'overwrite' },
+      (id) => {
+        if (chrome.runtime.lastError || id === undefined) {
+          resolve(false); // Can't tell, assume ok
+          return;
+        }
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            // If it hasn't completed in 500ms, the save dialog is probably showing
+            chrome.downloads.cancel(id);
+            chrome.downloads.erase({ id });
+            resolve(true);
+          }
+        }, 500);
+
+        const listener = (delta) => {
+          if (delta.id !== id) return;
+          if (delta.state && delta.state.current === 'complete') {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeout);
+              chrome.downloads.onChanged.removeListener(listener);
+              // Clean up the test file
+              chrome.downloads.removeFile(id);
+              chrome.downloads.erase({ id });
+              resolve(false);
+            }
+          }
+        };
+        chrome.downloads.onChanged.addListener(listener);
+      }
+    );
+  });
+}
+
+function showSaveAsWarning() {
+  let warning = $('#save-as-warning');
+  if (!warning) {
+    warning = document.createElement('div');
+    warning.id = 'save-as-warning';
+    warning.className = 'warning-banner';
+    warning.innerHTML = `
+      <p><strong>Chrome will ask where to save each file.</strong></p>
+      <p>To fix this, disable "Ask where to save each file" in
+      <a href="#" id="open-chrome-downloads">chrome://settings/downloads</a></p>
+    `;
+    const readyCard = $('#ready');
+    readyCard.insertBefore(warning, $('#btn-download'));
+
+    $('#open-chrome-downloads').addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'chrome://settings/downloads' });
+    });
+  }
+  warning.classList.remove('hidden');
+}
 
 // ---------- Cancel button ----------
 
@@ -244,8 +326,11 @@ function updateProgress(s) {
   if (s.status === 'scanning') {
     statusBadge.textContent = 'Scanning';
     statusBadge.className = 'status-badge';
-    progressBar.style.width = '0%';
-    progressCount.textContent = '';
+    const scanPct = s.totalSections > 0
+      ? Math.round(s.scannedSections / s.totalSections * 100) : 0;
+    progressBar.style.width = scanPct + '%';
+    progressCount.textContent = s.totalSections > 0
+      ? `${s.scannedSections} / ${s.totalSections} sections` : '';
   } else {
     statusBadge.textContent = 'Downloading';
     statusBadge.className = 'status-badge downloading';

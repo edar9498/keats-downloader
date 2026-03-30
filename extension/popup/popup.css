@@ -427,6 +427,27 @@ body.dark .toggle input:checked + .toggle-slider {
 
 .save-path strong { color: var(--muted); }
 
+/* ========== Warning Banner ========== */
+
+.warning-banner {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.warning-banner strong { color: var(--text); }
+
+.warning-banner a {
+  color: var(--red);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ========== Footer ========== */
 
 footer {

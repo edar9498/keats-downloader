@@ -7,6 +7,8 @@ let state = {
   totalFiles: 0,
   downloadedFiles: 0,
   failedFiles: 0,
+  scannedSections: 0,
+  totalSections: 0,
   currentFile: '',
   log: [],
   errors: [],
@@ -36,7 +38,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       } else {
         // Reset state when called from "Done"
         state = { status: 'idle', courseName: '', totalFiles: 0, downloadedFiles: 0,
-          failedFiles: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false };
+          failedFiles: 0, scannedSections: 0, totalSections: 0, currentFile: '', log: [], errors: [], sections: [], cancelled: false };
       }
       sendResponse({ ok: true });
       break;
@@ -87,6 +89,8 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     totalFiles: 0,
     downloadedFiles: 0,
     failedFiles: 0,
+    scannedSections: 0,
+    totalSections: courseInfo.sections.length,
     currentFile: '',
     log: [],
     errors: [],
@@ -110,107 +114,176 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     const allFiles = [];
 
     if (doMaterials) {
-      for (let i = 0; i < courseInfo.sections.length; i++) {
-        if (state.cancelled) break;
+      // Check if all sections are inline (topics/topcoll format)
+      const allInline = courseInfo.sections.every(s => s.inline && s.sectionId);
 
-        const section = courseInfo.sections[i];
-        const sectionName = sanitize(section.name);
-        if (!sectionName || /^-+$/.test(sectionName)) continue;
-
-        addLog(`Scanning ${i + 1}/${courseInfo.sections.length}: ${sectionName}`);
+      if (allInline && courseInfo.sections.length > 0) {
+        // Batch scrape: all sections live on one page, scrape them all at once
+        const coursePageUrl = courseInfo.courseUrl.split('#')[0];
+        addLog(`Scanning all ${courseInfo.sections.length} sections...`);
         broadcastProgress();
 
-        let files;
-        if (section.inline && section.sectionId) {
-          // Topics format: sections are inline on the course page
-          // Navigate to course page (only once), then scrape specific section
-          const coursePageUrl = courseInfo.courseUrl.split('#')[0];
-          const currentUrl = await getTabUrl(tempTabId);
-          if (!currentUrl || !currentUrl.includes(coursePageUrl.split('?')[0])) {
-            await navigateTab(tempTabId, coursePageUrl);
-            await sleep(2000);
-          }
-          files = await executeScrape(tempTabId, scrapeInlineSection, section.sectionId, doOptional);
-          await sleep(300); // Brief delay for topcoll sections to expand
-        } else {
-          // Grid format: navigate to separate section page
-          await navigateTab(tempTabId, section.href);
-          await sleep(1500);
-          files = await executeScrape(tempTabId, scrapeSectionPage, doOptional);
-        }
+        await navigateTab(tempTabId, coursePageUrl);
+        await sleep(1500);
 
-        // Expand folders
-        const expandedFiles = [];
-        for (const file of files) {
+        const sectionIds = courseInfo.sections.map(s => s.sectionId);
+        const batchResults = await executeScrape(tempTabId, scrapeAllInlineSections, sectionIds, doOptional);
+
+        for (let i = 0; i < courseInfo.sections.length; i++) {
           if (state.cancelled) break;
+          const section = courseInfo.sections[i];
+          const sectionName = sanitize(section.name);
+          if (!sectionName || /^-+$/.test(sectionName)) continue;
 
-          if (file.type === 'folder' && doFolders) {
-            addLog(`  Expanding folder: ${file.name}`);
-            await navigateTab(tempTabId, file.href);
-            await sleep(1000);
-            const folderFiles = await executeScrape(tempTabId, scrapeFolderPage);
-            for (const ff of folderFiles) {
-              ff.category = file.category;
-              ff.folderName = file.name;
-              expandedFiles.push(ff);
-            }
-          } else if (file.type === 'kaltura' && doVideos) {
-            // Resolve Kaltura video download URL
-            addLog(`  Resolving video: ${file.name}`);
-            await navigateTab(tempTabId, file.href);
-            await sleep(2000);
-
-            // Step 1: Get entry ID from the KEATS page iframe
-            const videoInfo = await executeScrape(tempTabId, scrapeKalturaVideo);
-
-            if (videoInfo && videoInfo.entryId) {
-              // Step 2: Navigate into the iframe URL to get a working KS
-              const iframeSrc = await executeScrape(tempTabId, scrapeKalturaIframeSrc);
-              if (iframeSrc) {
-                await navigateTab(tempTabId, iframeSrc);
-                await sleep(4000);
-                const innerInfo = await executeScrape(tempTabId, scrapeKalturaKS);
-                if (innerInfo && innerInfo.ksValues && innerInfo.ksValues.length > 0) {
-                  if (innerInfo.partnerId) videoInfo.partnerId = innerInfo.partnerId;
-
-                  // Try each KS to find one that works (some are domain-restricted)
-                  let workingKs = null;
-                  for (const ks of innerInfo.ksValues) {
-                    try {
-                      const testUrl = `https://cdnapisec.kaltura.com/api_v3/service/baseEntry/action/get?ks=${ks}&entryId=${videoInfo.entryId}&format=1`;
-                      const resp = await fetch(testUrl);
-                      const data = await resp.json();
-                      if (data && data.id && !data.code) {
-                        workingKs = ks;
-                        break;
-                      }
-                    } catch (e) { /* try next */ }
-                  }
-
-                  if (workingKs) {
-                    videoInfo.downloadUrl = `https://cdnapisec.kaltura.com/p/${videoInfo.partnerId}/sp/${videoInfo.partnerId}00/playManifest/entryId/${videoInfo.entryId}/format/download/protocol/https/ks/${workingKs}`;
+          const files = batchResults[section.sectionId] || [];
+          const expandedFiles = [];
+          for (const file of files) {
+            if (state.cancelled) break;
+            if (file.type === 'folder' && doFolders) {
+              addLog(`  Expanding folder: ${file.name}`);
+              await navigateTab(tempTabId, file.href);
+              await sleep(800);
+              const folderFiles = await executeScrape(tempTabId, scrapeFolderPage);
+              for (const ff of folderFiles) {
+                ff.category = file.category;
+                ff.folderName = file.name;
+                expandedFiles.push(ff);
+              }
+            } else if (file.type === 'kaltura' && doVideos) {
+              addLog(`  Resolving video: ${file.name}`);
+              await navigateTab(tempTabId, file.href);
+              await sleep(2000);
+              const videoInfo = await executeScrape(tempTabId, scrapeKalturaVideo);
+              if (videoInfo && videoInfo.entryId) {
+                const iframeSrc = await executeScrape(tempTabId, scrapeKalturaIframeSrc);
+                if (iframeSrc) {
+                  await navigateTab(tempTabId, iframeSrc);
+                  await sleep(3000);
+                  const innerInfo = await executeScrape(tempTabId, scrapeKalturaKS);
+                  if (innerInfo && innerInfo.ksValues && innerInfo.ksValues.length > 0) {
+                    if (innerInfo.partnerId) videoInfo.partnerId = innerInfo.partnerId;
+                    let workingKs = null;
+                    for (const ks of innerInfo.ksValues) {
+                      try {
+                        const testUrl = `https://cdnapisec.kaltura.com/api_v3/service/baseEntry/action/get?ks=${ks}&entryId=${videoInfo.entryId}&format=1`;
+                        const resp = await fetch(testUrl);
+                        const data = await resp.json();
+                        if (data && data.id && !data.code) { workingKs = ks; break; }
+                      } catch (e) { /* try next */ }
+                    }
+                    if (workingKs) {
+                      videoInfo.downloadUrl = `https://cdnapisec.kaltura.com/p/${videoInfo.partnerId}/sp/${videoInfo.partnerId}00/playManifest/entryId/${videoInfo.entryId}/format/download/protocol/https/ks/${workingKs}`;
+                    }
                   }
                 }
+                file.href = videoInfo.downloadUrl;
+                file.type = 'kalturaDownload';
+                expandedFiles.push(file);
+              } else {
+                addLog(`  Could not resolve video: ${file.name}`);
               }
-
-              file.href = videoInfo.downloadUrl;
-              file.type = 'kalturaDownload';
+            } else if (file.type !== 'folder' && file.type !== 'kaltura') {
               expandedFiles.push(file);
-            } else {
-              addLog(`  Could not resolve video: ${file.name}`);
             }
-          } else if (file.type !== 'folder' && file.type !== 'kaltura') {
-            expandedFiles.push(file);
           }
-        }
 
-        for (const file of expandedFiles) {
-          file.sectionName = sectionName;
-          file.courseName = courseName;
+          for (const file of expandedFiles) {
+            file.sectionName = sectionName;
+            file.courseName = courseName;
+          }
+          allFiles.push(...expandedFiles);
+          state.sections.push({ name: sectionName, fileCount: expandedFiles.length });
+          state.scannedSections++;
+          addLog(`Scanned: ${sectionName} (${expandedFiles.length} files)`);
+          broadcastProgress();
         }
+      } else {
+        // Grid format or mixed: navigate to each section page
+        for (let i = 0; i < courseInfo.sections.length; i++) {
+          if (state.cancelled) break;
 
-        allFiles.push(...expandedFiles);
-        state.sections.push({ name: sectionName, fileCount: expandedFiles.length });
+          const section = courseInfo.sections[i];
+          const sectionName = sanitize(section.name);
+          if (!sectionName || /^-+$/.test(sectionName)) continue;
+
+          addLog(`Scanning ${i + 1}/${courseInfo.sections.length}: ${sectionName}`);
+          broadcastProgress();
+
+          let files;
+          if (section.inline && section.sectionId) {
+            const coursePageUrl = courseInfo.courseUrl.split('#')[0];
+            const currentUrl = await getTabUrl(tempTabId);
+            if (!currentUrl || !currentUrl.includes(coursePageUrl.split('?')[0])) {
+              await navigateTab(tempTabId, coursePageUrl);
+              await sleep(1500);
+            }
+            files = await executeScrape(tempTabId, scrapeInlineSection, section.sectionId, doOptional);
+          } else {
+            await navigateTab(tempTabId, section.href);
+            await sleep(1000);
+            files = await executeScrape(tempTabId, scrapeSectionPage, doOptional);
+          }
+
+          const expandedFiles = [];
+          for (const file of files) {
+            if (state.cancelled) break;
+            if (file.type === 'folder' && doFolders) {
+              addLog(`  Expanding folder: ${file.name}`);
+              await navigateTab(tempTabId, file.href);
+              await sleep(800);
+              const folderFiles = await executeScrape(tempTabId, scrapeFolderPage);
+              for (const ff of folderFiles) {
+                ff.category = file.category;
+                ff.folderName = file.name;
+                expandedFiles.push(ff);
+              }
+            } else if (file.type === 'kaltura' && doVideos) {
+              addLog(`  Resolving video: ${file.name}`);
+              await navigateTab(tempTabId, file.href);
+              await sleep(2000);
+              const videoInfo = await executeScrape(tempTabId, scrapeKalturaVideo);
+              if (videoInfo && videoInfo.entryId) {
+                const iframeSrc = await executeScrape(tempTabId, scrapeKalturaIframeSrc);
+                if (iframeSrc) {
+                  await navigateTab(tempTabId, iframeSrc);
+                  await sleep(3000);
+                  const innerInfo = await executeScrape(tempTabId, scrapeKalturaKS);
+                  if (innerInfo && innerInfo.ksValues && innerInfo.ksValues.length > 0) {
+                    if (innerInfo.partnerId) videoInfo.partnerId = innerInfo.partnerId;
+                    let workingKs = null;
+                    for (const ks of innerInfo.ksValues) {
+                      try {
+                        const testUrl = `https://cdnapisec.kaltura.com/api_v3/service/baseEntry/action/get?ks=${ks}&entryId=${videoInfo.entryId}&format=1`;
+                        const resp = await fetch(testUrl);
+                        const data = await resp.json();
+                        if (data && data.id && !data.code) { workingKs = ks; break; }
+                      } catch (e) { /* try next */ }
+                    }
+                    if (workingKs) {
+                      videoInfo.downloadUrl = `https://cdnapisec.kaltura.com/p/${videoInfo.partnerId}/sp/${videoInfo.partnerId}00/playManifest/entryId/${videoInfo.entryId}/format/download/protocol/https/ks/${workingKs}`;
+                    }
+                  }
+                }
+                file.href = videoInfo.downloadUrl;
+                file.type = 'kalturaDownload';
+                expandedFiles.push(file);
+              } else {
+                addLog(`  Could not resolve video: ${file.name}`);
+              }
+            } else if (file.type !== 'folder' && file.type !== 'kaltura') {
+              expandedFiles.push(file);
+            }
+          }
+
+          for (const file of expandedFiles) {
+            file.sectionName = sectionName;
+            file.courseName = courseName;
+          }
+          allFiles.push(...expandedFiles);
+          state.sections.push({ name: sectionName, fileCount: expandedFiles.length });
+          state.scannedSections++;
+          broadcastProgress();
+        }
       }
     }
 
@@ -326,24 +399,29 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     // Hide Chrome's download bar/bubble during bulk download
     try { await chrome.downloads.setUiOptions({ enabled: false }); } catch (e) {}
 
-    for (let i = 0; i < downloadable.length; i++) {
-      if (state.cancelled) break;
+    const CONCURRENCY = 4;
+    let idx = 0;
 
-      const file = downloadable[i];
-      state.currentFile = file.name;
-      broadcastProgress();
+    async function worker() {
+      while (idx < downloadable.length && !state.cancelled) {
+        const file = downloadable[idx++];
+        state.currentFile = file.name;
+        broadcastProgress();
 
-      try {
-        await downloadWithRetry(file, basePath, 3);
-        state.downloadedFiles++;
-        addLog(`Downloaded: ${file.name}`);
-      } catch (err) {
-        state.failedFiles++;
-        state.errors.push({ name: file.name, error: err.message || String(err) });
-        addLog(`Failed: ${file.name} - ${err.message || err}`);
+        try {
+          await downloadWithRetry(file, basePath, 3);
+          state.downloadedFiles++;
+          addLog(`Downloaded: ${file.name}`);
+        } catch (err) {
+          state.failedFiles++;
+          state.errors.push({ name: file.name, error: err.message || String(err) });
+          addLog(`Failed: ${file.name} - ${err.message || err}`);
+        }
+        broadcastProgress();
       }
-      broadcastProgress();
     }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
     // Re-enable Chrome's download UI
     try { await chrome.downloads.setUiOptions({ enabled: true }); } catch (e) {}
@@ -508,6 +586,81 @@ function scrapeInlineSection(sectionId, includeOptional) {
   }
 
   return results;
+}
+
+function scrapeAllInlineSections(sectionIds, includeOptional) {
+  const resultMap = {};
+
+  for (const sectionId of sectionIds) {
+    let section = document.querySelector(
+      `.section.course-section[data-id="${sectionId}"], ` +
+      `.section.main[data-id="${sectionId}"], ` +
+      `li[id^="section-"][data-id="${sectionId}"]`
+    );
+    if (!section) { resultMap[sectionId] = []; continue; }
+
+    const toggle = section.querySelector('.toggle_closed');
+    if (toggle) { toggle.click(); }
+
+    const results = [];
+    let currentCategory = 'other';
+    let isOptional = false;
+
+    const activities = section.querySelectorAll('.activity');
+    for (const el of activities) {
+      if (el.classList.contains('modtype_label')) {
+        const raw = el.innerText.trim();
+        if (!raw || /^-+$/.test(raw) || raw.length < 3) continue;
+        const firstLine = raw.split('\n')[0].trim();
+        if (firstLine.length < 3 || firstLine.length > 120) continue;
+        const fl = firstLine.toUpperCase();
+
+        if (fl.includes('OPTIONAL')) { isOptional = true; }
+        if (fl.includes('MANDATORY') || fl.includes('REQUIRED') || fl.includes('CORE')) { isOptional = false; }
+
+        if (fl.includes('LECTURE MATERIAL') || fl.includes('LECTURE SLIDES') ||
+            fl.includes('LECTURE PODCAST') ||
+            (fl.includes('WEEK') && fl.includes('LECTURE'))) {
+          currentCategory = 'Lectures';
+        } else if (fl.includes('TUTORIAL MATERIAL') || fl.includes('TUTORIAL SLIDES') ||
+                   fl.includes('TUTORIAL PRE-READING') || fl.includes('TUTORIAL PREPARATION') ||
+                   fl.includes('SEMINAR MATERIAL')) {
+          currentCategory = 'Tutorials';
+        } else {
+          const isHeading = firstLine.length <= 80 &&
+            /^[A-Z]/.test(firstLine) &&
+            !firstLine.includes('. ') &&
+            firstLine.split(' ').length <= 12;
+          if (isHeading) {
+            currentCategory = firstLine.replace(/[/\\?%*:|"<>]/g, '-').substring(0, 60).trim();
+          }
+        }
+        continue;
+      }
+
+      if (isOptional && !includeOptional) continue;
+
+      if (el.classList.contains('modtype_resource')) {
+        const link = el.querySelector('a[href*="/mod/resource/"]');
+        if (!link) continue;
+        const name = el.innerText.trim().replace(/\n/g, ' ').replace(/\s*(File|Folder)\s*/g, '').trim();
+        if (!name || name.length < 2) continue;
+        results.push({ name, href: link.href, category: currentCategory, type: 'resource' });
+      }
+
+      if (el.classList.contains('modtype_folder')) {
+        const link = el.querySelector('a[href*="/mod/folder/"]');
+        if (!link) continue;
+        const name = el.innerText.trim().replace(/\n/g, ' ').replace(/\s*(File|Folder)\s*/g, '').trim();
+        if (!name || name.length < 2) continue;
+        results.push({ name, href: link.href, category: currentCategory, type: 'folder' });
+      }
+    }
+
+    resultMap[sectionId] = results;
+  }
+
+  return resultMap;
 }
 
 function scrapeFolderPage() {
@@ -899,7 +1052,7 @@ function broadcastProgress() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sanitize, addLog, sleep, downloadWithRetry,
-    scrapeSectionPage, scrapeInlineSection, scrapeFolderPage,
+    scrapeSectionPage, scrapeInlineSection, scrapeAllInlineSections, scrapeFolderPage,
     scrapeEcho360LTI, isMoodleCoursePage: undefined,
     get state() { return state; },
     set state(s) { state = s; },
