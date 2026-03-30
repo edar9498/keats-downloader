@@ -43,6 +43,16 @@ function createChromeMock() {
     scripting: {
       executeScript: jest.fn().mockResolvedValue([{ result: [] }]),
     },
+    storage: {
+      local: (() => {
+        let store = {};
+        return {
+          get: jest.fn((key) => Promise.resolve({ [key]: store[key] })),
+          set: jest.fn((obj) => { Object.assign(store, obj); return Promise.resolve(); }),
+          _clear: () => { store = {}; },
+        };
+      })(),
+    },
   };
 }
 

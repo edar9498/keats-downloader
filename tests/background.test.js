@@ -139,3 +139,23 @@ describe('downloadWithRetry', () => {
     await expect(bg.downloadWithRetry(file, 'KEATS/', 2)).rejects.toThrow('Server error');
   });
 });
+
+describe('fileKey', () => {
+  test('generates unique key from course + section + category + href', () => {
+    const file = { sectionName: 'Week 1', category: 'Lectures', href: 'https://example.com/file.pdf' };
+    const key = bg.fileKey('MDE', file);
+    expect(key).toBe('MDE|Week 1|Lectures|https://example.com/file.pdf');
+  });
+
+  test('handles missing optional fields', () => {
+    const file = { href: 'https://example.com/file.pdf' };
+    const key = bg.fileKey('MDE', file);
+    expect(key).toBe('MDE|||https://example.com/file.pdf');
+  });
+
+  test('different files produce different keys', () => {
+    const file1 = { sectionName: 'Week 1', href: 'https://example.com/a.pdf' };
+    const file2 = { sectionName: 'Week 1', href: 'https://example.com/b.pdf' };
+    expect(bg.fileKey('MDE', file1)).not.toBe(bg.fileKey('MDE', file2));
+  });
+});

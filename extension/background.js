@@ -16,7 +16,37 @@ let state = {
   cancelled: false,
 };
 
-// (filename resolution is now done inline before each download)
+// ==================== Download history ====================
+
+async function getDownloadHistory() {
+  const data = await chrome.storage.local.get('downloadHistory');
+  return data.downloadHistory || {};
+}
+
+async function saveDownloadHistory(history) {
+  await chrome.storage.local.set({ downloadHistory: history });
+}
+
+function fileKey(courseName, file) {
+  // Unique key: course + section + category + filename href
+  return `${courseName}|${file.sectionName || ''}|${file.category || ''}|${file.href}`;
+}
+
+async function markDownloaded(courseName, file, downloadPath) {
+  const history = await getDownloadHistory();
+  history[fileKey(courseName, file)] = {
+    name: file.name,
+    path: downloadPath,
+    date: Date.now(),
+    course: courseName,
+  };
+  await saveDownloadHistory(history);
+}
+
+async function isAlreadyDownloaded(courseName, file) {
+  const history = await getDownloadHistory();
+  return history[fileKey(courseName, file)] || null;
+}
 
 // ---------- Message handling ----------
 
@@ -42,6 +72,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       sendResponse({ ok: true });
       break;
+    case 'GET_HISTORY':
+      getDownloadHistory().then(h => {
+        // Group by course
+        const courses = {};
+        for (const [key, entry] of Object.entries(h)) {
+          const course = entry.course || 'Unknown';
+          if (!courses[course]) courses[course] = { count: 0, lastDownload: 0 };
+          courses[course].count++;
+          if (entry.date > courses[course].lastDownload) courses[course].lastDownload = entry.date;
+        }
+        sendResponse({ total: Object.keys(h).length, courses });
+      });
+      return true; // async response
+    case 'CLEAR_HISTORY':
+      if (msg.course) {
+        // Clear history for a specific course
+        getDownloadHistory().then(h => {
+          for (const [key, entry] of Object.entries(h)) {
+            if (entry.course === msg.course) delete h[key];
+          }
+          saveDownloadHistory(h).then(() => sendResponse({ ok: true }));
+        });
+      } else {
+        saveDownloadHistory({}).then(() => sendResponse({ ok: true }));
+      }
+      return true; // async response
   }
   return false;
 });
@@ -127,6 +183,14 @@ async function startDownload(_tabId, courseInfo, options = {}) {
         await sleep(1500);
 
         const sectionIds = courseInfo.sections.map(s => s.sectionId);
+
+        // Expand any collapsed sections first, then wait for DOM to update
+        const expandedCount = await executeScrape(tempTabId, expandCollapsedSections, sectionIds);
+        if (expandedCount > 0) {
+          addLog(`Expanding ${expandedCount} collapsed sections...`);
+          await sleep(1000);
+        }
+
         const batchResults = await executeScrape(tempTabId, scrapeAllInlineSections, sectionIds, doOptional);
 
         for (let i = 0; i < courseInfo.sections.length; i++) {
@@ -389,9 +453,25 @@ async function startDownload(_tabId, courseInfo, options = {}) {
       f.type === 'resource' || f.type === 'folderFile' || f.type === 'echo360' || f.type === 'kalturaDownload'
     );
 
-    state.totalFiles = downloadable.length;
+    // Filter out already-downloaded files
+    let skippedFiles = 0;
+    const toDownload = [];
+    for (const file of downloadable) {
+      const existing = await isAlreadyDownloaded(courseName, file);
+      if (existing) {
+        skippedFiles++;
+      } else {
+        toDownload.push(file);
+      }
+    }
+
+    if (skippedFiles > 0) {
+      addLog(`\nSkipped ${skippedFiles} previously downloaded files`);
+    }
+
+    state.totalFiles = toDownload.length;
     state.status = 'downloading';
-    addLog(`\nDownloading ${downloadable.length} files...`);
+    addLog(`Downloading ${toDownload.length} new files...`);
     broadcastProgress();
 
     if (state.cancelled) return;
@@ -403,14 +483,15 @@ async function startDownload(_tabId, courseInfo, options = {}) {
     let idx = 0;
 
     async function worker() {
-      while (idx < downloadable.length && !state.cancelled) {
-        const file = downloadable[idx++];
+      while (idx < toDownload.length && !state.cancelled) {
+        const file = toDownload[idx++];
         state.currentFile = file.name;
         broadcastProgress();
 
         try {
           await downloadWithRetry(file, basePath, 3);
           state.downloadedFiles++;
+          await markDownloaded(courseName, file, basePath);
           addLog(`Downloaded: ${file.name}`);
         } catch (err) {
           state.failedFiles++;
@@ -428,7 +509,7 @@ async function startDownload(_tabId, courseInfo, options = {}) {
 
     state.status = state.cancelled ? 'cancelled' : 'complete';
     state.currentFile = '';
-    addLog(`\nDone! ${state.downloadedFiles} downloaded, ${state.failedFiles} failed.`);
+    addLog(`\nDone! ${state.downloadedFiles} downloaded, ${state.failedFiles} failed.${skippedFiles > 0 ? ` ${skippedFiles} skipped (already downloaded).` : ''}`);
     broadcastProgress();
 
   } catch (err) {
@@ -588,19 +669,32 @@ function scrapeInlineSection(sectionId, includeOptional) {
   return results;
 }
 
+function expandCollapsedSections(sectionIds) {
+  // Click all collapsed toggles so their content becomes visible
+  let expanded = 0;
+  for (const sectionId of sectionIds) {
+    const section = document.querySelector(
+      `.section.course-section[data-id="${sectionId}"], ` +
+      `.section.main[data-id="${sectionId}"], ` +
+      `li[id^="section-"][data-id="${sectionId}"]`
+    );
+    if (!section) continue;
+    const toggle = section.querySelector('.toggle_closed, .toggled-off .sectionname a, .collapsed .sectionname a');
+    if (toggle) { toggle.click(); expanded++; }
+  }
+  return expanded;
+}
+
 function scrapeAllInlineSections(sectionIds, includeOptional) {
   const resultMap = {};
 
   for (const sectionId of sectionIds) {
-    let section = document.querySelector(
+    const section = document.querySelector(
       `.section.course-section[data-id="${sectionId}"], ` +
       `.section.main[data-id="${sectionId}"], ` +
       `li[id^="section-"][data-id="${sectionId}"]`
     );
     if (!section) { resultMap[sectionId] = []; continue; }
-
-    const toggle = section.querySelector('.toggle_closed');
-    if (toggle) { toggle.click(); }
 
     const results = [];
     let currentCategory = 'other';
@@ -993,7 +1087,7 @@ async function executeScrape(tabId, func, ...args) {
     func,
     args,
   });
-  return results[0]?.result || [];
+  return results[0]?.result ?? [];
 }
 
 // ==================== Helpers ====================
@@ -1051,7 +1145,7 @@ function broadcastProgress() {
 // Expose internals for testing (no-op in Chrome extension context)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    sanitize, addLog, sleep, downloadWithRetry,
+    sanitize, addLog, sleep, downloadWithRetry, fileKey,
     scrapeSectionPage, scrapeInlineSection, scrapeAllInlineSections, scrapeFolderPage,
     scrapeEcho360LTI, isMoodleCoursePage: undefined,
     get state() { return state; },

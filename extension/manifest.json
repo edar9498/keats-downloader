@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "KEATS Downloader",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Download all KEATS course materials in one click. Slides, videos, podcasts — organised into folders.",
   "permissions": [
     "downloads",
     "downloads.ui",
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "https://*/*"
