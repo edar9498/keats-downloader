@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chrome.google.com/webstore"><img src="https://img.shields.io/badge/Chrome_Web_Store-coming_soon-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
+  <a href="https://chromewebstore.google.com/detail/alcfjagceodkndgakfpejoilijfcedhp"><img src="https://img.shields.io/badge/Chrome_Web_Store-install-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/version-1.4.0-c1002a?style=for-the-badge" alt="Version" /></a>
   <a href="../../blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c1002a?style=for-the-badge" alt="MIT License" /></a>
 </p>
@@ -22,8 +22,7 @@
 
 ### Chrome Web Store
 
-<!-- TODO: Replace with actual Chrome Web Store link when approved -->
-[**Install KEATS Downloader**](https://chrome.google.com/webstore) — one click, no developer mode needed. *(Awaiting approval)*
+[**Install KEATS Downloader**](https://chromewebstore.google.com/detail/alcfjagceodkndgakfpejoilijfcedhp) — one click, no developer mode needed.
 
 ### Manual Install
 
